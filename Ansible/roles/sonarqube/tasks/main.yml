@@ -1,0 +1,72 @@
+---
+   - name: Update apt cache and install required packages
+      apt:
+        update_cache: yes
+        name: "{{ item }}"
+      loop:
+        - openjdk-11-jdk
+        - unzip
+        - postgresql
+        - postgresql-contrib
+
+    - name: Download and extract SonarQube
+      get_url:
+        url: "https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-{{ sonarqube_version }}.zip"
+        dest: "/tmp/sonarqube-{{ sonarqube_version }}.zip"
+
+    - name: Unzip SonarQube
+      command: "unzip -o /tmp/sonarqube-{{ sonarqube_version }}.zip -d /opt"
+      args:
+        creates: "{{ sonarqube_home }}"
+
+    - name: Set ownership and permissions for SonarQube
+      file:
+        path: "{{ sonarqube_home }}"
+        owner: "{{ sonarqube_user }}"
+        group: "{{ sonarqube_group }}"
+        mode: 0755
+      become: true
+
+    - name: Create SonarQube service configuration
+      template:
+        src: sonarqube.service.j2
+        dest: "/etc/systemd/system/sonarqube.service"
+      notify: 
+        - Restart SonarQube
+
+    - name: Enable and start SonarQube service
+      systemd:
+        name: sonarqube
+        enabled: yes
+        state: started
+
+    - name: Install PostgreSQL server
+      postgresql_db:
+        name: "{{ postgresql_database }}"
+        state: present
+      become_user: postgres
+      become: true
+
+    - name: Create PostgreSQL user and database
+      postgresql_user:
+        name: "{{ postgresql_user }}"
+        password: "{{ postgresql_password }}"
+      become_user: postgres
+      become: true
+
+    - name: Update PostgreSQL configuration to allow remote connections
+      lineinfile:
+        path: /etc/postgresql/{{ postgresql_version }}/main/postgresql.conf
+        line: "listen_addresses = '*'"
+      notify:
+        - Restart PostgreSQL
+
+    - name: Add PostgreSQL authentication configuration
+      blockinfile:
+        path: /etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf
+        block: |
+          # Allow remote connections
+          host    all             all             0.0.0.0/0               md5
+      notify:
+        - Restart PostgreSQL
+

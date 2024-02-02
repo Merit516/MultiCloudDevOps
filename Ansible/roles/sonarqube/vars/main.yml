@@ -1,0 +1,9 @@
+---
+sonarqube_version: "your_sonarqube_version"
+sonarqube_home: "/opt/sonarqube"
+sonarqube_user: "sonarqube"
+sonarqube_group: "sonarqube"
+postgresql_version: "your_postgresql_version"
+postgresql_user: "your_postgresql_user"
+postgresql_password: "your_postgresql_password"
+postgresql_database: "your_postgresql_database"
